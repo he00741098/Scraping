@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<preprint current_publication_id="1" date_submitted="2024-07-26" locale="en" stage="production" status="1" submission_progress="" xmlns="http://pkp.sfu.ca" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pkp.sfu.ca native.xsd">
+  <id advice="ignore" type="internal">1</id>
+  <submission_file created_at="2024-07-26" date_created="" file_id="1" genre="Preprint Text" id="1" stage="proof" updated_at="2024-07-26" uploader="admin" viewable="false" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pkp.sfu.ca native.xsd">
+    <name locale="en">
+    ##PDF_NAME##
+    </name>
+    <file extension="pdf" filesize="##FILE_SIZE##" id="1">
+      <embed encoding="base64">##EMBED##</embed>
+    </file>
+  </submission_file>
+  <publication access_status="0" primary_contact_id="1" section_ref="PRE" seq="0" status="1" url_path="" version="1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pkp.sfu.ca native.xsd">
+    <id advice="ignore" type="internal">1</id>
+    <id type="doi">##DOI##</id>
+    <title locale="en">##TITLE##</title>
+    <abstract locale="en">##ABSTRACT##</abstract>
+    <keywords>
+    ##KEYWORDS##
+    </keywords>
+    <authors xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pkp.sfu.ca native.xsd">
+      ##AUTHORS##
+    </authors>
+    <preprint_galley approved="false" locale="en" url_path="" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pkp.sfu.ca native.xsd">
+      <id advice="ignore" type="internal">1</id>
+      <name locale="en">PDF</name>
+      <seq>0</seq>
+      <submission_file_ref id="1"></submission_file_ref>
+    </preprint_galley>
+  </publication>
+</preprint>

@@ -1,7 +1,18 @@
 // Import puppeteer
 const puppeteer = require('puppeteer');
 const fs = require('fs');
+const shell = require('shelljs');
+
 (async () => {
+
+  let start_page = 1;
+  fs.readFile('place.txt', 'utf8', function (err, data) {
+    // Display the file content
+    console.log(data);
+    start_page = parseInt(data);
+  });
+
+
   // Launch the browser
   const browser = await puppeteer.launch({
     headless: true, args: ['--start-maximized',
@@ -25,21 +36,26 @@ const fs = require('fs');
   // set page to 100 terms
   await page.evaluate(() => {
     document.getElementsByClassName("items")[1].childNodes[1].childNodes[4].childNodes[0].click();
-    console.log("Set to 100 things");
+    document.getElementById("pageno").focus();
   });
 
-  let start_page = 8;
-  for(var pageno=0; pageno<start_page; pageno++){
-    console.log("Skipping page...\nCurrent Page: "+pageno);
-    const searchResultSelector = '.next';
-    // await page.waitForSelector(searchResultSelector);
-    // await page.click(searchResultSelector);
-    await page.waitForNavigation();
-    page.locator(searchResultSelector).click();
-    // if (pageno<6){
-    // }
-  }
-  
+  await page.waitForNavigation({WaitForOptions:'load'});
+  // for(var pageno=0; pageno<start_page; pageno++){
+  //   console.log("Skipping page...\nCurrent Page: "+pageno);
+  //   const searchResultSelector = '.next';
+  //   page.locator(searchResultSelector).click();
+  //   await page.waitForNavigation();
+  // }
+  // await page.focus('#pageno');
+  if(start_page>1){
+  await page.locator('#pageno').fill(""+start_page);
+  await page.evaluate(() => {
+    document.getElementById("pageno").focus();
+  });
+  await page.keyboard.press('Enter');
+  await page.waitForNavigation({WaitForOptions:'load'});
+}
+
   const real_page_num = await page.evaluate(()=>{
     return document.getElementById("pageno").value;
   });
@@ -121,6 +137,17 @@ const fs = require('fs');
         console.log("Going to: "+ temp_obj.abstract_link);
         await new_temp_page.goto(temp_obj.abstract_link);
         await new_temp_page.setViewport({width: 1080, height: 1024});
+        const retracted = await new_temp_page.evaluate(()=>{
+          if (document.getElementsByClassName("retraction-alert").length>0){
+            return true;
+          }else{
+            return false;
+          }
+        });
+        if (retracted){
+          //skip page
+          continue;
+        }
         const abstract = await new_temp_page.evaluate(()=>{
           if (document.getElementsByClassName("tsec sec")[0].childNodes[3]!=null){
             return document.getElementsByClassName("tsec sec")[0].childNodes[3].innerText.split("\n");
@@ -177,7 +204,16 @@ const fs = require('fs');
             }
             return null;
           }
-          document.getElementsByClassName("fm-author")[0].childNodes.forEach((x)=>author_list.push(x.innerText));
+          if(document.getElementsByClassName("fm-author")[0]!=null){
+            document.getElementsByClassName("fm-author")[0].childNodes.forEach((x)=>author_list.push(x.innerText));
+          }else if(document.getElementsByClassName("contrib-group")[0]!=null){
+            document.getElementsByClassName("contrib-group")[0].childNodes.forEach((x)=>author_list.push(x.innerText));
+          }else if(document.getElementsByClassName("fm-editor")[0]!=null){
+            document.getElementsByClassName("fm-editor")[0].childNodes.forEach((x)=>author_list.push(x.innerText));
+          }else{
+            console.log("No editor found!!!!");
+            author_list.push("None");
+          }
           author_list = author_list.filter((f)=>{return f!=null});
           author_list = author_list.filter((f)=>{return f.length>0});
           author_list = author_list.map((f)=>{return f.replace(",", "")});
@@ -275,6 +311,10 @@ const fs = require('fs');
       if (err) throw err;
     });
 
+    fs.writeFile("place.txt", ""+(pageno+1), err => {
+      if (err) throw err;
+    });
+    shell.exec('./mullvad_reload.sh')
     
     console.log("Nexting")
     const searchResultSelector = '.next';
