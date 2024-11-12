@@ -1,6 +1,6 @@
 use base64::prelude::*;
 use bytes::Bytes;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::path::Path;
 use tokio::fs::read_dir;
 use tokio::sync::mpsc;
@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 #[tokio::main]
 async fn main() {
     // download_all_pdfs().await;
-    // combine_all_json_files().await;
+    // combine_all_json_files(188).await;
     // read_filter_combined_json_files().await;
     // let path = "./json/combined.json";
     // // let mut entries_read = 0;
@@ -38,11 +38,23 @@ async fn main() {
     // .as_array()
     // .expect("Pub info to be array");
     // test_array.for_each(|f| println!("{}", f));
+    // read_character_slice(48987394 - 500, 48987394 + 500).await;
     // format_to_xmls().await;
-    // upload_all_xmls().await;
     upload_all().await;
     // partition_files().await;
     // get_list_to_delete().await;
+}
+
+async fn read_character_slice(start: usize, end: usize) {
+    let file = tokio::fs::read_to_string("./json/combined.json")
+        .await
+        .unwrap();
+    let file = file.to_string();
+    println!(
+        "OUT OF {} CHARACTERS:\n...|{}|...",
+        file.len(),
+        &file[start..end]
+    );
 }
 
 async fn get_list_to_delete() {
@@ -91,7 +103,7 @@ async fn partition_files() {
 }
 
 async fn upload_all() {
-    let token="Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.Ijc2ZTc4NTExM2VmNzY4YWUyOGFjOTE3ZGMzNTFlODQ4NzVhMTMzYTci.1fAVqgtRg18r2Fno5hngn0c5zGfbb18esot1bxhXTGQ";
+    let token="Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.IjI3Nzc2NjFmYTRhNjk2OWNkODI3MDA1ZjcwOWMyMjk2MzQwM2E4NzIi.cbRSeFZNL-5hPS4Irne6xUkRsVQsRfDBY4sI9ZwI5VY";
     let test_body = r##"{
     "locale": "en",
     "sectionId": 0,
@@ -103,15 +115,18 @@ async fn upload_all() {
         .expect("Client to be built");
     let mut total = 0;
     loop {
+        println!("Submitting");
         let submissions = client
-        .get("https://ayurxiv.org/index.php/server/api/v1/submissions?status=1&count=100&apiToken=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.Ijc2ZTc4NTExM2VmNzY4YWUyOGFjOTE3ZGMzNTFlODQ4NzVhMTMzYTci.1fAVqgtRg18r2Fno5hngn0c5zGfbb18esot1bxhXTGQ")
+        .get("https://ayurxiv.org/index.php/ayurxiv/api/v1/submissions?status=1&count=100&apiToken=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.IjI3Nzc2NjFmYTRhNjk2OWNkODI3MDA1ZjcwOWMyMjk2MzQwM2E4NzIi.cbRSeFZNL-5hPS4Irne6xUkRsVQsRfDBY4sI9ZwI5VY")
         .send()
         .await.unwrap().text().await.unwrap();
+        // println!("{:?}", submissions);
         let entries = serde_json::from_str::<Value>(&submissions).unwrap();
         let entries = entries.as_object().unwrap();
         let items = entries.get("items").unwrap().as_array().unwrap();
         total = entries.get("itemsMax").unwrap().as_i64().unwrap();
-        if (total == 0) {
+        if total == 0 {
+            println!("Zero");
             return;
         }
         for i in items {
@@ -123,97 +138,97 @@ async fn upload_all() {
                 .unwrap()
                 .as_i64()
                 .unwrap();
-            let response = client.put(format!("https://ayurxiv.org/index.php/server/api/v1/submissions/{}/publications/{}/publish?apiToken=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.Ijc2ZTc4NTExM2VmNzY4YWUyOGFjOTE3ZGMzNTFlODQ4NzVhMTMzYTci.1fAVqgtRg18r2Fno5hngn0c5zGfbb18esot1bxhXTGQ", obj, pub_id)).send().await.expect("To have response");
+            let response = client.put(format!("https://ayurxiv.org/index.php/ayurxiv/api/v1/submissions/{}/publications/{}/publish?apiToken=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.IjI3Nzc2NjFmYTRhNjk2OWNkODI3MDA1ZjcwOWMyMjk2MzQwM2E4NzIi.cbRSeFZNL-5hPS4Irne6xUkRsVQsRfDBY4sI9ZwI5VY", obj, pub_id)).send().await.expect("To have response");
             let response = response.text().await.unwrap();
             println!("{}\n\n", response);
         }
     }
 }
 
-async fn upload_all_xmls() {
-    let mut dir = read_dir("./xml/").await.expect("Path exists");
-    let client = reqwest::ClientBuilder::new()
-        .user_agent("Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0")
-        .build()
-        .expect("Client to be built");
-    let mut sent = 0;
-    while let Ok(Some(entry)) = dir.next_entry().await {
-        let divider = "---------------------------7023907691680357374782039712";
-        let file_contents = tokio::fs::read_to_string(entry.path()).await.unwrap();
-        let name = entry.file_name();
-        let name = name.to_str().unwrap();
-        let body = format!(
-            "{}\nContent-Disposition: form-data; name=\"name\"\n\n{}\n{}\nContent-Disposition: form-data; name=\"uploadedFile\"; filename=\"{}\"\nContent-Type: text/xml\n\n{}\n\n{}--",
-            divider, name, divider, name, file_contents, divider
-        );
-        let bodyclone = body.clone();
-        let request = client.post("https://ayurxiv.org/index.php/server/management/importexport/plugin/NativeImportExportPlugin/uploadImportXML").header("Accept", "*/*").header("Content-Type", "multipart/form-data; boundary=---------------------------7023907691680357374782039712").header("Cookie", "OPSSID=prld97t14qlt1fpa2ngh2v64fq").header("Host", "ayurxiv.org").header("Origin", "https://ayurxiv.org").header("Referer", "https://ayurxiv.org/index.php/server/management/importexport/plugin/NativeImportExportPlugin");
-        // println!("Could not read file: {:?}", entry.path());
-        let post_result = request.body(body).send().await;
-        if post_result.is_err() {
-            println!("{:?}", post_result);
-            let place = format!("Failed at {}", sent);
-            tokio::fs::write("place.txt", sent.to_string())
-                .await
-                .expect(&place);
-            return;
-        }
-        let response = post_result.unwrap().json::<Value>().await;
-        if response.is_err() {
-            println!("Failed to parse post result at {}\n{:?}", sent, response);
-            return;
-        }
-        let responser = response.unwrap();
-        if !responser.is_object() {
-            println!("response is not object at {} \n{}", sent, responser);
-            return;
-        }
-        let response = responser.as_object().unwrap();
-        let field = response.get("temporaryFileId");
-        if field.is_none() {
-            println!(
-                "Could not get file id at {}, {:?}\n{}",
-                sent, response, bodyclone
-            );
-            return;
-        }
-        let field = field.unwrap();
-        let field = match field {
-            Value::Null => {
-                println!("Null");
-                None
-            }
-            Value::Bool(_) => {
-                println!("Bool");
-                None
-            }
-            Value::Number(x) => Some(x.to_string()),
-            Value::String(x) => Some(x.to_string()),
-            Value::Array(_) => {
-                println!("Array");
-                None
-            }
-            Value::Object(_) => {
-                println!("Object");
-                None
-            }
-        };
-        if field.is_none() {
-            println!("Is none!!!");
-            return;
-        }
-        let field = field.unwrap();
-        let request = client.post("https://ayurxiv.org/index.php/server/management/importexport/plugin/NativeImportExportPlugin/importBounce").header("Accept", "*/*").header("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8").header("Cookie", "OPSSID=prld97t14qlt1fpa2ngh2v64fq").header("X-Requested-With", "XMLHttpRequest").header("Priority", "u=0");
-        let request = request.body(
-            "csrfToken=a04af340f797adb55a2b8c03c8b84935&temporaryFileId=70&submitFormButton=",
-        );
-        let response = request.send().await;
-        if response.is_err() {
-            println!("Is err");
-        }
-        sent += 1;
-    }
-}
+// async fn upload_all_xmls() {
+//     let mut dir = read_dir("./xml/").await.expect("Path exists");
+//     let client = reqwest::ClientBuilder::new()
+//         .user_agent("Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0")
+//         .build()
+//         .expect("Client to be built");
+//     let mut sent = 0;
+//     while let Ok(Some(entry)) = dir.next_entry().await {
+//         let divider = "---------------------------7023907691680357374782039712";
+//         let file_contents = tokio::fs::read_to_string(entry.path()).await.unwrap();
+//         let name = entry.file_name();
+//         let name = name.to_str().unwrap();
+//         let body = format!(
+//             "{}\nContent-Disposition: form-data; name=\"name\"\n\n{}\n{}\nContent-Disposition: form-data; name=\"uploadedFile\"; filename=\"{}\"\nContent-Type: text/xml\n\n{}\n\n{}--",
+//             divider, name, divider, name, file_contents, divider
+//         );
+//         let bodyclone = body.clone();
+//         let request = client.post("https://ayurxiv.org/index.php/server/management/importexport/plugin/NativeImportExportPlugin/uploadImportXML").header("Accept", "*/*").header("Content-Type", "multipart/form-data; boundary=---------------------------7023907691680357374782039712").header("Cookie", "OPSSID=prld97t14qlt1fpa2ngh2v64fq").header("Host", "ayurxiv.org").header("Origin", "https://ayurxiv.org").header("Referer", "https://ayurxiv.org/index.php/server/management/importexport/plugin/NativeImportExportPlugin");
+//         // println!("Could not read file: {:?}", entry.path());
+//         let post_result = request.body(body).send().await;
+//         if post_result.is_err() {
+//             println!("{:?}", post_result);
+//             let place = format!("Failed at {}", sent);
+//             tokio::fs::write("place.txt", sent.to_string())
+//                 .await
+//                 .expect(&place);
+//             return;
+//         }
+//         let response = post_result.unwrap().json::<Value>().await;
+//         if response.is_err() {
+//             println!("Failed to parse post result at {}\n{:?}", sent, response);
+//             return;
+//         }
+//         let responser = response.unwrap();
+//         if !responser.is_object() {
+//             println!("response is not object at {} \n{}", sent, responser);
+//             return;
+//         }
+//         let response = responser.as_object().unwrap();
+//         let field = response.get("temporaryFileId");
+//         if field.is_none() {
+//             println!(
+//                 "Could not get file id at {}, {:?}\n{}",
+//                 sent, response, bodyclone
+//             );
+//             return;
+//         }
+//         let field = field.unwrap();
+//         let field = match field {
+//             Value::Null => {
+//                 println!("Null");
+//                 None
+//             }
+//             Value::Bool(_) => {
+//                 println!("Bool");
+//                 None
+//             }
+//             Value::Number(x) => Some(x.to_string()),
+//             Value::String(x) => Some(x.to_string()),
+//             Value::Array(_) => {
+//                 println!("Array");
+//                 None
+//             }
+//             Value::Object(_) => {
+//                 println!("Object");
+//                 None
+//             }
+//         };
+//         if field.is_none() {
+//             println!("Is none!!!");
+//             return;
+//         }
+//         let field = field.unwrap();
+//         let request = client.post("https://ayurxiv.org/index.php/server/management/importexport/plugin/NativeImportExportPlugin/importBounce").header("Accept", "*/*").header("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8").header("Cookie", "OPSSID=prld97t14qlt1fpa2ngh2v64fq").header("X-Requested-With", "XMLHttpRequest").header("Priority", "u=0");
+//         let request = request.body(
+//             "csrfToken=a04af340f797adb55a2b8c03c8b84935&temporaryFileId=70&submitFormButton=",
+//         );
+//         let response = request.send().await;
+//         if response.is_err() {
+//             println!("Is err");
+//         }
+//         sent += 1;
+//     }
+// }
 
 async fn format_to_xmls() {
     let starterxml = tokio::fs::read_to_string("./starterxml.txt").await.unwrap();
@@ -240,7 +255,7 @@ async fn format_to_xmls() {
     let file_contents = file_contents.unwrap();
     let file_contents = serde_json::from_str::<Value>(&file_contents);
     if file_contents.is_err() {
-        println!("Could not parse");
+        println!("Could not parse: {:?}", file_contents);
         return;
     }
     let file_contents = file_contents.unwrap();
@@ -250,6 +265,7 @@ async fn format_to_xmls() {
         println!("Not Array");
         return;
     };
+    let mut keyword_skipped = 0;
     for test_run in file_contents {
         let test_run = test_run.as_object().unwrap();
         let pmcid = test_run
@@ -266,30 +282,52 @@ async fn format_to_xmls() {
         let pdf_embed = BASE64_STANDARD.encode(pdf);
         let doi = test_run.get("doi").unwrap().as_str().unwrap();
         let title = replace_invalid_characters(test_run.get("title").unwrap().as_str().unwrap());
-        let abs = test_run
-            .get("abstract_text")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|f| replace_invalid_characters(f.as_str().unwrap()))
-            .collect::<Vec<String>>()
-            .join("\n");
-        let keywords = test_run
-            .get("keywords")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|key| {
-                let copy = keyword_format.replace(
-                    "##KEYWORD##",
-                    &replace_invalid_characters(key.as_str().unwrap()),
-                );
-                copy
-            })
-            .collect::<Vec<String>>()
-            .join("\n");
+        let abs = test_run.get("abstract_text");
+        if abs.is_none() {
+            continue;
+        }
+
+        let abs = abs.unwrap();
+        let abs = if abs.is_array() {
+            abs.as_array()
+                .unwrap()
+                .iter()
+                .map(|f| replace_invalid_characters(f.as_str().unwrap()))
+                .filter(|x| !x.contains("Abstract") || x.len() > 10)
+                .filter(|x| !x.contains("Background") || x.len() > 11)
+                .filter(|x| !x.contains("Keywords: ") || x.len() > 11)
+                .collect::<Vec<String>>()
+                .join("\n")
+        } else if abs.is_string() {
+            replace_invalid_characters(abs.as_str().unwrap())
+        } else {
+            println!("Skipping. no Abstract");
+            continue;
+        };
+        let keywords = test_run.get("keywords").unwrap();
+        let keywords = if keywords.is_array() {
+            let keywords = keywords
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|key| {
+                    let copy = keyword_format.replace(
+                        "##KEYWORD##",
+                        &replace_invalid_characters(key.as_str().unwrap()),
+                    );
+                    copy
+                })
+                .collect::<Vec<String>>();
+            if keywords.len() < 3 || keywords.len() > 12 {
+                // println!("Keywords: {}", keywords.len());
+                keyword_skipped += 1;
+                continue;
+            }
+            keywords.join("\n")
+        } else {
+            // println!("Keywords is not Array: {:?}", keywords);
+            continue;
+        };
         //{"name":"Christian S. Kessler","attributes":[""],"email":"c.kessler@immanuel.de"}
         let authors = test_run
             .get("publication_info")
@@ -297,7 +335,10 @@ async fn format_to_xmls() {
             .as_array()
             .unwrap()
             .iter()
-            .map(|author| author.as_object().unwrap())
+            .map(|author| {
+                // println!("{}", author);
+                author.as_object().unwrap()
+            })
             .map(|author| Author {
                 name: author.get("name").unwrap().as_str().unwrap(),
                 attributes: author
@@ -307,6 +348,19 @@ async fn format_to_xmls() {
                     .unwrap()
                     .iter()
                     .map(|attr| replace_invalid_characters(attr.as_str().unwrap()))
+                    .map(|attr| {
+                        let mut chars = attr.chars();
+                        let mut word = attr.clone();
+                        while let Some(x) = chars.next() {
+                            if x.is_numeric() || !x.is_alphabetic() {
+                                continue;
+                            } else {
+                                word = format!("{}{}", x, chars.collect::<String>());
+                                break;
+                            }
+                        }
+                        word
+                    })
                     .collect(),
                 email: replace_invalid_characters(author.get("email").unwrap().as_str().unwrap()),
                 country: replace_invalid_characters(
@@ -383,6 +437,8 @@ async fn format_to_xmls() {
             .await
             .unwrap();
     }
+
+    println!("Skipped {} due to insufficient keywords", keyword_skipped);
 }
 struct Author<'a> {
     name: &'a str,
@@ -681,6 +737,41 @@ async fn read_filter_combined_json_files() {
         //requirements too pass: downloaded pdf and authors
         if let Value::Object(mut obj) = entry {
             let pdf_link = obj.get("pdf_link").expect("To have pdf link").clone();
+            let abs = obj.get("abstract_text");
+            if let Some(Value::String(x)) = abs {
+                if !x.to_lowercase().contains("ayurv")
+                    && !x.to_lowercase().contains("traditional")
+                    && !x.to_lowercase().contains("india")
+                    && !x.to_lowercase().contains("system of medicine")
+                {
+                    removed += 1;
+                    println!("Removed For No Abstract String");
+                    continue;
+                }
+            } else if let Some(Value::Array(x)) = abs {
+                let stringy = x
+                    .iter()
+                    .map(|entry| entry.as_str())
+                    .filter(|x| x.is_some())
+                    .map(|x| x.unwrap())
+                    .map(|x| x.to_owned())
+                    .collect::<Vec<String>>()
+                    .join("\n");
+                if !stringy.to_lowercase().contains("ayurv")
+                    && !stringy.to_lowercase().contains("traditional")
+                    && !stringy.to_lowercase().contains("india")
+                    && !stringy.to_lowercase().contains("system of medicine")
+                {
+                    removed += 1;
+                    println!("Removed For No Abstract Array");
+                    continue;
+                }
+            } else {
+                println!("Removed For No Abstract");
+                removed += 1;
+                continue;
+            }
+
             let pmcid = obj
                 .get("PMCID")
                 .expect("PMCID to exist")
@@ -691,22 +782,52 @@ async fn read_filter_combined_json_files() {
             let authors = obj
                 .get_mut("publication_info")
                 .expect("To have author array");
-            if !authors.is_array() {
-                println!("Authors is not array!");
-                continue;
-            }
+            let authors = if !authors.is_array() {
+                // [{"attributes":["\n1Laboratory No. 3, National Centre for Cell Science, Pune University Campus, Ganeshkhind Road, Pune, 411007 India "],"country":"IN","email":"random@sweep.rs","name":"Himanshu Kumar"}
+                // println!("Authors is not array!: {:?}", authors);
+                //attempt to create array
+                let authors = authors
+                    .as_str()
+                    .unwrap_or("None")
+                    .split(",")
+                    .filter(|x| x != &"None")
+                    .map(|x| x.trim())
+                    .map(|x| {
+                        let value = json!({
+                            "attributes": [],
+                            "country": "US",
+                            "email": "random@sweep.rs",
+                            "name": x
+                        });
+                        // println!("Mapped Value: {:?}", value);
+                        value
+                    })
+                    .collect::<Vec<Value>>();
+                // println!("Array :{:?}", authors);
+                if !authors.is_empty() {
+                    // println!("fixed");
+                    authors
+                } else {
+                    println!("Not fixed");
+                    continue;
+                }
+            } else {
+                std::mem::take(authors.as_array_mut().unwrap())
+            };
             if !pdf_link.is_string() {
-                println!("Pdf link is not string!");
+                // println!("Pdf link is not string!");
                 continue;
             }
-            let authors = authors.as_array_mut().unwrap();
             let pdf_link = pdf_link.as_str().unwrap();
             if authors.is_empty() {
-                println!("No Authors!");
+                // println!("No Authors!");
                 removed += 1;
                 continue;
             } else if !pdf_link.contains("https") {
-                println!("No Link!");
+                // println!("No Link!");
+                removed += 1;
+                continue;
+            } else if authors.len() > 10 {
                 removed += 1;
                 continue;
             }
@@ -741,7 +862,8 @@ async fn read_filter_combined_json_files() {
 
             //entry is qualified to be accepted - Now add country(defualt to U.S) and change null
             //emails to random@sweep.rs
-            for author in authors {
+            let mut revised_authors = vec![];
+            for mut author in authors {
                 let author = author.as_object_mut().expect("Author to be object");
                 //authors is an array of objects
                 let email = author
@@ -776,8 +898,13 @@ async fn read_filter_combined_json_files() {
                         println!("Attribute Isn't String!!: {:?}", attribute);
                     }
                 }
+                revised_authors.push(Value::Object(std::mem::take(author)));
             }
-
+            obj.insert(
+                "publication_info".to_string(),
+                Value::Array(revised_authors),
+            );
+            // println!("Entry: {:?}", obj);
             accepted_entries.push(Value::Object(obj));
         } else {
             println!("Entry is not Object!!!!");
@@ -793,7 +920,7 @@ async fn read_filter_combined_json_files() {
     }
 }
 
-async fn combine_all_json_files() {
+async fn combine_all_json_files(files: i32) {
     let path = "./json/";
     let mut dir = read_dir(path).await.expect("Path exists");
     let mut entries_read = 0;
@@ -813,13 +940,17 @@ async fn combine_all_json_files() {
         let mut chars = chars.chars();
         chars.next();
         chars.next_back();
-        let value = if entries_read >= 187 {
+        let value = if entries_read >= files - 1 {
             println!("Last File reached!!");
             chars.as_str().to_string()
         } else {
             format!("{},", chars.as_str())
         };
-        article_array.push(value);
+        if value.len() > 1 {
+            article_array.push(value);
+        } else {
+            println!("No Length Value!, Skipping: {}", value);
+        }
         entries_read += 1;
     }
     println!("Entries Read: {}", entries_read);
@@ -856,11 +987,11 @@ async fn download_all_pdfs() {
         write_to_file(rx, "./pdf/").await;
     });
     let client = reqwest::ClientBuilder::new().user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36").build().expect("Client to be built");
-    for _ in 1..=137 {
-        if let Ok(Some(entry)) = dir.next_entry().await {
-            println!("Skipping {:?}", entry);
-        }
-    }
+    // for _ in 1..=137 {
+    //     if let Ok(Some(entry)) = dir.next_entry().await {
+    //         println!("Skipping {:?}", entry);
+    //     }
+    // }
     while let Ok(Some(entry)) = dir.next_entry().await {
         //begin download...
         let file_contents = tokio::fs::read_to_string(entry.path()).await;
@@ -879,6 +1010,29 @@ async fn download_all_pdfs() {
                 for item in vec {
                     //item should be an object
                     if let Value::Object(obj) = item {
+                        let pmcid = obj.get("PMCID");
+                        let pmcid = if let Some(file) = pmcid {
+                            if let Value::String(s) = file {
+                                if s.contains("PMCID: ") {
+                                    Some(s.replace("PMCID: ", ""))
+                                } else {
+                                    println!("PMCID: not found :{:?}", s);
+                                    None
+                                }
+                            } else {
+                                println!("file name is not a string!: {:?}", file);
+                                None
+                            }
+                        } else {
+                            None
+                        };
+                        if pmcid.is_some()
+                            && Path::new(&format!("./pdf/{}.pdf", pmcid.unwrap())).exists()
+                        {
+                            println!("File already downloaded");
+                            continue;
+                        }
+
                         let pdf_link = obj.get("pdf_link");
                         if pdf_link.is_none() {
                             println!("PDF link not found");

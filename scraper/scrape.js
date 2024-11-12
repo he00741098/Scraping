@@ -149,134 +149,54 @@ const shell = require('shelljs');
           continue;
         }
         const abstract = await new_temp_page.evaluate(()=>{
-          if (document.getElementsByClassName("tsec sec")[0].childNodes[3]!=null){
-            return document.getElementsByClassName("tsec sec")[0].childNodes[3].innerText.split("\n");
-          }else if(document.getElementsByClassName("tsec sec")[0].childNodes[2]!=null){
-            return document.getElementsByClassName("tsec sec")[0].childNodes[2].innerText.split("\n");
+          if (document.getElementsByClassName("abstract").length>0){
+            return document.getElementsByClassName("abstract")[0].innerText.split("\n");
           }else{
             console.log("No Abstract FOUND!!!!");
             return "None";
           }
         });
+
         const license = await new_temp_page.evaluate(()=>{
-          if (document.getElementsByClassName("license")[0]!=null){
+          if (document.getElementsByClassName("license").length>0){
             return document.getElementsByClassName("license")[0].innerText;
           }else{
             return "Unknown";
           }
         });
         const doi = await new_temp_page.evaluate(()=>{
-          if(document.getElementsByClassName("doi")[0]!=null){
-            if(document.getElementsByClassName("doi")[0].childNodes[1]!=null){
-              return document.getElementsByClassName("doi")[0].childNodes[1].innerText;
-            }else{
-              return "Unknown";
-            }
+          if(document.getElementsByClassName("usa-link usa-link--external")[0]!=null){
+            return document.getElementsByClassName("usa-link usa-link--external")[0].innerText;
           }else{
             return "Unknown";
           }
         });
         const keywords = await new_temp_page.evaluate(()=>{
-          if(document.getElementsByClassName("kwd-text")[0]!=null){
-            return document.getElementsByClassName("kwd-text")[0].innerText.split(",").map((x)=>x.trim());
+          if(document.getElementsByClassName("kwd-group")[0]!=null){
+            return document.getElementsByClassName("kwd-group")[0].innerText.replace("Keywords: ","").split(",").map((x)=>x.trim());
           }else{
             return ["None"]
           }
         });
         const author_data = await new_temp_page.evaluate(()=>{
-          let author_list = [];
           let author_data = [];
-          let email_list = [];
-          let atags = document.getElementsByClassName("oemail");
-          for(atag of atags){
-            email_list.push(atag.innerText.split("").reverse().join(""));
-          }
-          function find_email(target){
-            target = target.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-            let targets = target.split(" ");
-            for(var g of email_list){
-              console.log(g);
-              if (g.includes(targets[0])){
-                return g;
-              }else if(targets.length>1&&g.includes(targets[targets.length-1])){
-                return g;
-              }
-            }
-            return null;
-          }
-          if(document.getElementsByClassName("fm-author")[0]!=null){
-            document.getElementsByClassName("fm-author")[0].childNodes.forEach((x)=>author_list.push(x.innerText));
-          }else if(document.getElementsByClassName("contrib-group")[0]!=null){
-            document.getElementsByClassName("contrib-group")[0].childNodes.forEach((x)=>author_list.push(x.innerText));
-          }else if(document.getElementsByClassName("fm-editor")[0]!=null){
-            document.getElementsByClassName("fm-editor")[0].childNodes.forEach((x)=>author_list.push(x.innerText));
-          }else{
-            console.log("No editor found!!!!");
-            author_list.push("None");
-          }
-          author_list = author_list.filter((f)=>{return f!=null});
-          author_list = author_list.filter((f)=>{return f.length>0});
-          author_list = author_list.map((f)=>{return f.replace(",", "")});
-          if(author_list.length==1){
-            //do the thing...
-            let author_email = "";
-            if(email_list.length==1){
-              author_email = email_list[0]
-            }else if(email_list.length==0){
-              author_email="None";
-            }else{
-              //try finding email with first name
-              author_email = find_email(author_list[0]);
-            }
-            if (document.getElementsByClassName("fm-affl")[0]!=null){
-              author_data.push({
-                name:author_list[0],
-                attributes:[document.getElementsByClassName("fm-affl")[0].innerText],
-                email:author_email
-              });
-            }else{
-              author_data.push({
-                name:author_list[0],
-                attributes:[],
-                email:author_email
-              });
-            }
-
-          }
-          else{
-
-            let dat = document.getElementsByClassName("fm-affl");
-            let dat2 = [];
-            for(var f of dat){
-              if(f.childNodes.length>1){
-                dat2[f.childNodes[0].innerText] = f.childNodes[1].textContent;
-              }else{
-                console.log("No sups");
-                dat2[""] = f.innerText;
-              }
+          let id = 1;
+          while(document.getElementById("id"+id)!=null){
+            let author = document.getElementById("id"+id);
+            let name = author.childNodes[1].innerText;
+            let relations = [];
+            let start = 3;
+            while (!author.childNodes[start].innerText.includes("Find")){
+              relations.push(author.childNodes[start].innerText);
+              start+=2;
             }
             let current_author = {
-              name:"",
-              attributes:[]
+              name: name,
+              attributes: relations,
+              email:"random@sweep.rs"
             };
-            for (var i = 0; i<author_list.length;i++){
-              if(author_list[i].length>3){
-                if(i>0){
-                  author_data.push(current_author);
-                  current_author = {
-                    name:"",
-                    attributes:[]
-                  };
-                }
-                current_author.name = author_list[i];
-                current_author.email = find_email(author_list[i]);
-              }else{
-                let attribute = dat2[author_list[i]];
-                if(attribute!=undefined){
-                  current_author.attributes.push(attribute);
-                }
-              }
-            }
+            author_data.push(current_author);
+            id++;
           }
           return author_data;
         });
